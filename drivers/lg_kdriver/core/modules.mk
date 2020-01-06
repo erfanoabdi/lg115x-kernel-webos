@@ -24,9 +24,10 @@
 #
 ifeq ($(MODULE_MK_INCLUDED),)
 
-ifeq ($(KDRV_PLATFORM_CFG),)
-$(error KDRV_PLATFORM_CFG is not defined, please define this variable above )
-endif
+#ifeq ($(KDRV_PLATFORM_CFG),)
+#$(error KDRV_PLATFORM_CFG is not defined, please define this variable above )
+#endif
+KDRV_PLATFORM_CFG ?= h13_nc4
 
 include $(KDRV_TOP_DIR)/incs.mk
 include $(KDRV_TOP_DIR)/../platform/$(KDRV_PLATFORM_CFG)/platform_dev.mk
