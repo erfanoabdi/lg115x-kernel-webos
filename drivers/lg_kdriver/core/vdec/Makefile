@@ -38,11 +38,6 @@ $(info unknown chip name for vdec hal directory, $(chip_name))
 vdec_haldir := unknown/chip/name
 endif
 
-vdec_haldir_h13_A0 := h13_A0
-vdec_haldir := h13/a0
-PLATFORM_CHIP_NAME := h13
-PLATFORM_CHIP_REV := A0
-
 #
 # compiled objects
 #
