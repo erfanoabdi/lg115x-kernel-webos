@@ -37,10 +37,11 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include "../lg1154_vdec_base.h"
+#include "../vdec_base.h"
 #include "../top_hal_api.h"
-#include "../pdec_hal_api.h"
+#include "../../pdec_hal_api.h"
 #include "pdec_reg.h"
+#include "../../../mcu/os_adap.h"
 
 #ifndef __XTENSA__
 #include <linux/kernel.h>

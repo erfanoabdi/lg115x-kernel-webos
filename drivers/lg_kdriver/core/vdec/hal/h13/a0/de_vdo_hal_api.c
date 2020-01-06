@@ -36,11 +36,12 @@
 	File Inclusions
 ----------------------------------------------------------------------------------------*/
 #include "vdec_type_defs.h"
-#include "../lg1154_vdec_base.h"
+#include "../vdec_base.h"
 
 #include "vdo_reg.h"
-#include "../de_vdo_hal_api.h"
+#include "../../de_vdo_hal_api.h"
 #include "../top_hal_api.h"
+#include "../../../mcu/os_adap.h"
 
 #include "log.h"
 
@@ -568,7 +569,15 @@ void DE_VDO_HAL_Init(void)
 	_SetTiledMapType(TILED_BUFFER_BASE, TILED_MIXED_V_MAP);
 }
 
+void DE_VDO_HAL_Suspend(void)
+{
+        log_warning ("FIXME: not implemented\n");
+}
 
+void DE_VDO_HAL_Resume(void)
+{
+        log_warning ("FIXME: not implemented\n");
+}
 
 /**
 ********************************************************************************

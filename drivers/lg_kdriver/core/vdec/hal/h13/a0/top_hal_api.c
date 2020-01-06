@@ -34,10 +34,11 @@
  *   File Inclusions
  *---------------------------------------------------------------------------------------*/
 #include "vdec_type_defs.h"
-#include "../lg1154_vdec_base.h"
+#include "../vdec_base.h"
 #include "rc0_reg.h"
 #include "rc1_reg.h"
-#include "../top_hal_api.h"
+#include "../../top_hal_api.h"
+#include "../../../mcu/os_adap.h"
 
 #define LOG_NAME vdec_hal_top
 #include "log.h"
@@ -159,6 +160,7 @@ void TOP_HAL_ResetMach(UINT8 vcore_num)
 	}
 	RC0_WrFL(sw_reset);
 }
+EXPORT_SYMBOL(TOP_HAL_ResetMach);
 
 void TOP_HAL_ResetPDECAll(void)
 {
@@ -494,6 +496,7 @@ void TOP_HAL_SetMachIntrMode(UINT8 vcore_num, UINT8 IntrMode)
 	RC0_WrFL(mach_conf);
 
 }
+EXPORT_SYMBOL(TOP_HAL_SetMachIntrMode);
 
 UINT8 TOP_HAL_GetMachIntrMode(UINT8 vcore_num)
 {
@@ -517,6 +520,7 @@ UINT8 TOP_HAL_GetMachIntrMode(UINT8 vcore_num)
 
 	return IntrMode;
 }
+EXPORT_SYMBOL(TOP_HAL_GetMachIntrMode);
 
 UINT8 TOP_HAL_GetMachIdleStatus(UINT8 vcore_num)
 {
@@ -540,6 +544,7 @@ UINT8 TOP_HAL_GetMachIdleStatus(UINT8 vcore_num)
 
 	return idleStatus;
 }
+EXPORT_SYMBOL(TOP_HAL_GetMachIdleStatus);
 
 UINT8 TOP_HAL_GetMachUnderRunStatus(UINT8 vcore_num)
 {
@@ -563,6 +568,7 @@ UINT8 TOP_HAL_GetMachUnderRunStatus(UINT8 vcore_num)
 
 	return underRun;
 }
+EXPORT_SYMBOL(TOP_HAL_GetMachUnderRunStatus);
 
 /*
 	VDISP_CONF                       	sync_conf                       ;	// 0x001c : ''
@@ -578,6 +584,7 @@ void TOP_HAL_EnableExtIntr(VDEC_INTR_T ui32IntrSrc)
 	RC0_Wr(intr_e_en, RC0_Rd(intr_e_en) |(1 << ui32IntrSrc));
 	RC0_WrFL(intr_e_en);
 }
+EXPORT_SYMBOL(TOP_HAL_EnableExtIntr);
 
 int TOP_HAL_DisableExtIntr(VDEC_INTR_T ui32IntrSrc)
 {
@@ -592,6 +599,7 @@ int TOP_HAL_DisableExtIntr(VDEC_INTR_T ui32IntrSrc)
 
 	return ret;
 }
+EXPORT_SYMBOL(TOP_HAL_DisableExtIntr);
 
 void TOP_HAL_ClearExtIntr(VDEC_INTR_T ui32IntrSrc)
 {
@@ -599,6 +607,7 @@ void TOP_HAL_ClearExtIntr(VDEC_INTR_T ui32IntrSrc)
 	RC0_Wr(intr_e_cl, RC0_Rd(intr_e_cl) |(1 << ui32IntrSrc));
 	RC0_WrFL(intr_e_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_ClearExtIntr);
 
 void TOP_HAL_ClearExtIntrMsk(UINT32 ui32IntrMsk)
 {
@@ -606,6 +615,7 @@ void TOP_HAL_ClearExtIntrMsk(UINT32 ui32IntrMsk)
 	RC0_Wr(intr_e_cl, ui32IntrMsk);
 	RC0_WrFL(intr_e_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_ClearExtIntrMsk);
 
 void TOP_HAL_DisableExtIntrAll(void)
 {
@@ -617,6 +627,7 @@ void TOP_HAL_DisableExtIntrAll(void)
 	RC0_Wr(intr_e_cl, 0xFFFFFFFF);
 	RC0_WrFL(intr_e_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_DisableExtIntrAll);
 
 UINT8 TOP_HAL_IsExtIntrEnable(VDEC_INTR_T eVdecIntrSrc)
 {
@@ -630,12 +641,14 @@ UINT8 TOP_HAL_IsExtIntrEnable(VDEC_INTR_T eVdecIntrSrc)
 
 	return FALSE;
 }
+EXPORT_SYMBOL(TOP_HAL_IsExtIntrEnable);
 
 UINT32 TOP_HAL_GetExtIntrStatus(void)
 {
 	RC0_RdFL(intr_e_st);
 	return RC0_Rd(intr_e_st);
 }
+EXPORT_SYMBOL(TOP_HAL_GetExtIntrStatus);
 
 void TOP_HAL_EnableInterIntr(VDEC_INTR_T ui32IntrSrc)
 {
@@ -643,23 +656,25 @@ void TOP_HAL_EnableInterIntr(VDEC_INTR_T ui32IntrSrc)
 	RC0_Wr(intr_i_en, RC0_Rd(intr_i_en) |(1 << ui32IntrSrc));
 	RC0_WrFL(intr_i_en);
 }
+EXPORT_SYMBOL(TOP_HAL_EnableInterIntr);
 
 int TOP_HAL_DisableInterIntr(VDEC_INTR_T ui32IntrSrc)
 {
 	int ret;
 	ULONG	ulFlags;
 
-	spin_lock_irqsave(&_gstApbConfLock, ulFlags);
+	//spin_lock_irqsave(&_gstApbConfLock, ulFlags);
 
 	RC0_RdFL(intr_i_en);
 	ret = !! (RC0_Rd(intr_i_en) & (1 << ui32IntrSrc));
 	RC0_Wr(intr_i_en, RC0_Rd(intr_i_en) & ~(1 << ui32IntrSrc));
 	RC0_WrFL(intr_i_en);
 
-	spin_unlock_irqrestore(&_gstApbConfLock, ulFlags);
+	//spin_unlock_irqrestore(&_gstApbConfLock, ulFlags);
 
 	return ret;
 }
+EXPORT_SYMBOL(TOP_HAL_DisableInterIntr);
 
 void TOP_HAL_ClearInterIntr(VDEC_INTR_T ui32IntrSrc)
 {
@@ -667,6 +682,7 @@ void TOP_HAL_ClearInterIntr(VDEC_INTR_T ui32IntrSrc)
 	RC0_Wr(intr_i_cl, RC0_Rd(intr_i_cl) |(1 << ui32IntrSrc));
 	RC0_WrFL(intr_i_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_ClearInterIntr);
 
 void TOP_HAL_ClearInterIntrMsk(UINT32 ui32IntrMsk)
 {
@@ -674,6 +690,7 @@ void TOP_HAL_ClearInterIntrMsk(UINT32 ui32IntrMsk)
 	RC0_Wr(intr_i_cl, ui32IntrMsk);
 	RC0_WrFL(intr_i_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_ClearInterIntrMsk);
 
 void TOP_HAL_DisableInterIntrAll(void)
 {
@@ -685,6 +702,7 @@ void TOP_HAL_DisableInterIntrAll(void)
 	RC0_Wr(intr_i_cl, 0xFFFFFFFF);
 	RC0_WrFL(intr_i_cl);
 }
+EXPORT_SYMBOL(TOP_HAL_DisableInterIntrAll);
 
 UINT8 TOP_HAL_IsInterIntrEnable(VDEC_INTR_T ui32IntrSrc)
 {
@@ -698,12 +716,49 @@ UINT8 TOP_HAL_IsInterIntrEnable(VDEC_INTR_T ui32IntrSrc)
 
 	return FALSE;
 }
+EXPORT_SYMBOL(TOP_HAL_IsInterIntrEnable);
 
 UINT32 TOP_HAL_GetInterIntrStatus(void)
 {
 	RC0_RdFL(intr_i_st);
 	return RC0_Rd(intr_i_st);
 }
+EXPORT_SYMBOL(TOP_HAL_GetInterIntrStatus);
+
+#if 1
+/* external(ARM side) interrupt control */
+void    TOP_HAL_EnableIntr(VDEC_INTR_T s)    { TOP_HAL_EnableExtIntr(s); }
+int    TOP_HAL_DisableIntr(VDEC_INTR_T s)    { return TOP_HAL_DisableExtIntr(s); }
+void    TOP_HAL_ClearIntr(VDEC_INTR_T s)    { TOP_HAL_ClearExtIntr(s); }
+void    TOP_HAL_ClearIntrMsk(VDEC_INTR_T s)    { TOP_HAL_ClearExtIntrMsk(s); }
+void    TOP_HAL_DisableIntrAll()        { TOP_HAL_DisableExtIntrAll(); }
+UINT8    TOP_HAL_IsIntrEnable(VDEC_INTR_T s)    { return TOP_HAL_IsExtIntrEnable(s); }
+UINT32    TOP_HAL_GetIntrStatus()            { return TOP_HAL_GetExtIntrStatus(); }
+
+void    TOP_HAL_EnableVsyncIntr(VDEC_INTR_T s)    { TOP_HAL_EnableExtIntr(s); }
+int    TOP_HAL_DisableVsyncIntr(VDEC_INTR_T s)    { return TOP_HAL_DisableExtIntr(s); }
+void    TOP_HAL_ClearVsyncIntr(VDEC_INTR_T s)    { TOP_HAL_ClearExtIntr(s); }
+void    TOP_HAL_ClearVsyncIntrMsk(VDEC_INTR_T s)    { TOP_HAL_ClearExtIntrMsk(s); }
+UINT8    TOP_HAL_IsVsyncIntrEnable(VDEC_INTR_T s)    { return TOP_HAL_IsExtIntrEnable(s); }
+UINT32    TOP_HAL_GetVsyncIntrStatus(void) { return TOP_HAL_GetExtIntrStatus(); }
+#else
+/* internal(MCU side) interrupt control */
+void    TOP_HAL_EnableIntr(VDEC_INTR_T s)    { TOP_HAL_EnableInterIntr(s); }
+int    TOP_HAL_DisableIntr(VDEC_INTR_T s)    { return TOP_HAL_DisableInterIntr(s); }
+void    TOP_HAL_ClearIntr(VDEC_INTR_T s)    { TOP_HAL_ClearInterIntr(s); }
+void    TOP_HAL_ClearIntrMsk(VDEC_INTR_T s)    { TOP_HAL_ClearInterIntrMsk(s); }
+void    TOP_HAL_DisableIntrAll()        { TOP_HAL_DisableInterIntrAll(); }
+UINT8    TOP_HAL_IsIntrEnable(VDEC_INTR_T s)    { return TOP_HAL_IsInterIntrEnable(s); }
+UINT32    TOP_HAL_GetIntrStatus()            { return TOP_HAL_GetInterIntrStatus(); }
+
+void    TOP_HAL_EnableVsyncIntr(VDEC_INTR_T s)    { TOP_HAL_EnableInterIntr(s); }
+int    TOP_HAL_DisableVsyncIntr(VDEC_INTR_T s)    { return TOP_HAL_DisableInterIntr(s); }
+void    TOP_HAL_ClearVsyncIntr(VDEC_INTR_T s)    { TOP_HAL_ClearInterIntr(s); }
+void    TOP_HAL_ClearVsyncIntrMsk(VDEC_INTR_T s)    { TOP_HAL_ClearInterIntrMsk(s); }
+UINT8    TOP_HAL_IsVsyncIntrEnable(VDEC_INTR_T s)    { return TOP_HAL_IsInterIntrEnable(s); }
+UINT32    TOP_HAL_GetVsyncIntrStatus(void)    { return TOP_HAL_GetInterIntrStatus(); }
+#endif
+
 
 void TOP_HAL_EnableBufIntr(BUFFER_INTR_T ui32IntrSrc)
 {
@@ -797,6 +852,7 @@ UINT32 TOP_HAL_SetApbMachOffset(UINT8 ui8CoreNume, UINT8 ui8Offset)
 
 	return u32RetVal;
 }
+EXPORT_SYMBOL(TOP_HAL_SetApbMachOffset);
 
 UINT32 TOP_HAL_SetApbVDO(UINT8 ui8GdiSelection, UINT8 ui8Offset)
 {
@@ -824,6 +880,8 @@ UINT32 TOP_HAL_SetApbConfig(UINT32 ui32Value)
 
 	return u32RetVal;
 }
+EXPORT_SYMBOL(TOP_HAL_SetApbConfig);
+
 void TOP_HAL_EnableFeedTimer(void)
 {
 }
