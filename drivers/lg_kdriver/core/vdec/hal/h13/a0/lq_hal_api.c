@@ -37,7 +37,8 @@
 #include "vdec_type_defs.h"
 #include "../lg1154_vdec_base.h"
 #include "lq_reg.h"
-#include "../lq_hal_api.h"
+#include "../../lq_hal_api.h"
+#include "../../../mcu/os_adap.h"
 
 #ifndef __XTENSA__
 #include <linux/kernel.h>
