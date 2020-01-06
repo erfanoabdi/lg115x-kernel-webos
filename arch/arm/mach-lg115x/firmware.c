@@ -21,6 +21,9 @@
 	asm volatile("mrc p15," #OP1 "," " %0 " ", " #N "," #M "," #OP2 : "=r" (VAL));\
 } while (0)
 
+#define ARM_DBG_READ(N, M, OP2, VAL) do {\
+        asm volatile("mrc p14, 0, %0, " #N "," #M ", " #OP2 : "=r" (VAL));\
+} while (0)
 
 /* cp15 read multiprocessor id register */
 static u32 __arm_part_num(void)
