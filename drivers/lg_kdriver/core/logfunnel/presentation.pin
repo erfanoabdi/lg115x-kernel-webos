@@ -1,0 +1,37 @@
+#!/usr/bin/env pinpoint
+
+[white]
+
+--
+logfunnel
+--
+· log 출력은 프로그램 동작에 영향을 주지 말아야 한다
+· 프로그램 실행 중 log 출력을 켜고 끌 수 있어야 한다
+· log의 중요도에 따라 log level이 있어야 한다
+· kernel과 application이 함께 사용해 시간적 동기화가 맞아야 한다
+· 원격에서 실시간으로 로그를 관찰할 수 있어야 한다
+
+-- [white] [logfunnel.png] [top]
+“DTV SOC Debug Framework” google docs
+--
+※ start daemon
+  - <span size='xx-small' font='Monospace'>./res/lglib/bin/logpiped</span>
+※ connect to the daemon on host
+  - <span size='xx-small' font='Monospace'>telnet 192.168.0.123 2012</span>
+-- [command=xterm]
+※ library link
+  - <span size='xx-small' font='Monospace'>LDFLAGS += -llog</span>
+※ header include
+  - <span size='xx-small' font='Monospace'>#include "log.h"</span>
+※ log module define
+  - <span size='xx-small' font='Monospace'>logm_define();</span>
+※ log print
+  - <span size='xx-small' font='Monospace'>logm_error();</span>
+  - <span size='xx-small' font='Monospace'>logm_warning();</span>
+  - <span size='xx-small' font='Monospace'>logm_debug();</span>
+  - <span size='xx-small' font='Monospace'>logm_trace();</span>
+※ check log level
+  - <span size='xx-small' font='Monospace'>logm_enabled()</span>
+--
+· binary dump 기능 추가?
+· host debug 프로그램?

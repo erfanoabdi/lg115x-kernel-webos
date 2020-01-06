@@ -1,0 +1,8 @@
+export KDRV_MODULE_BUILD
+
+ifeq ($(KDRV_MODULE_BUILD), YES)
+CONFIG_LG_BUILTIN_KDRIVER := m
+endif
+
+obj-$(CONFIG_LG_BUILTIN_KDRIVER) += logfunnel.o
+
