@@ -61,7 +61,9 @@
 	Type Definitions
 -----------------------------------------------------------------------------*/
 
+#ifndef BOOLEAN
 typedef unsigned int BOOLEAN;
+#endif
 
 typedef enum
 {
