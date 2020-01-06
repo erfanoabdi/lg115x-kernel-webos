@@ -133,7 +133,8 @@ typedef unsigned int    UINT32;         /*  type corresponds to 32 bits     */
 #endif
 
 #ifndef Handle_t
-typedef void *          Handle_t;       /*  memory pointer type             */
+#define Handle_t void *
+//typedef void *          Handle_t;       /*  memory pointer type             */
 #endif
 
 #ifndef LX_ADEMOD_Result
