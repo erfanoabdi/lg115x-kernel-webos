@@ -10,6 +10,10 @@ static inline void lg115x_init_emmc(void)
 #else	/* CONFIG_MMC_SDHCI_LG115X */
 
 #include <linux/init.h>
+#include <linux/amba/bus.h>
+
+#define AMBA_DEVICE(name, busid, prefix, data)    \
+AMBA_AHB_DEVICE(name, busid, 0, prefix##_BASE, {prefix##_IRQS}, data)
 
 extern void __init lg115x_init_emmc(void);
 
