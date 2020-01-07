@@ -1096,6 +1096,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			     MMC_CAP_UHS_DDR50))
 				== (MMC_CAP_1_2V_DDR | MMC_CAP_UHS_DDR50)))
 				ddr = MMC_1_2V_DDR_MODE;
+#ifdef CONFIG_MMC_SDHCI_LG115X
+        if (host->caps & MMC_CAP_UHS_DDR50)
+                ddr = MMC_1_8V_DDR_MODE;
+#endif
 	}
 
 	/*

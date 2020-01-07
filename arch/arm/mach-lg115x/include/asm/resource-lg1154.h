@@ -126,5 +126,6 @@
 #define GPIO16_IRQS	{ GPIO16_IRQ }
 #define GPIO17_IRQS	{ GPIO17_IRQ }
 #define DMAC_IRQS	{ DMAC_IRQ }
+#define SDHCI_IRQS	{ SDHCI_IRQ }
 
 #endif	/* __ASM_RESOURCE_LG1154_H */
