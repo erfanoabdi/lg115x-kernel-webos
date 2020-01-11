@@ -4629,7 +4629,6 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		if (IS_I_VERSION(inode) && attr->ia_size != inode->i_size)
 			inode_inc_iversion(inode);
 
->>>>>>> origin/kernel_common
 		if (S_ISREG(inode->i_mode) &&
 		    (attr->ia_size < inode->i_size)) {
 			if (ext4_should_order_data(inode)) {
@@ -4752,14 +4751,8 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * blocks for this file.
 	 */
 	delalloc_blocks = EXT4_C2B(EXT4_SB(inode->i_sb),
-<<<<<<< HEAD
-				EXT4_I(inode)->i_reserved_data_blocks);
-
-	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits-9);
-=======
 				   EXT4_I(inode)->i_reserved_data_blocks);
 	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits - 9);
->>>>>>> origin/kernel_common
 	return 0;
 }
 
