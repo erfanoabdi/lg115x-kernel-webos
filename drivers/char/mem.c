@@ -734,7 +734,7 @@ static loff_t null_lseek(struct file *file, loff_t offset, int orig)
 	return file->f_pos = 0;
 }
 
-#if defined(CONFIG_DEVMEM) || defined(CONFIG_DEVKMEM) || defined(CONFIG_DEVPORT)
+#if defined(CONFIG_DEVMEM) || defined(CONFIG_DEVKMEM) || defined(CONFIG_DEVPORT) || defined(CONFIG_LG_MEM_DEVICE)
 
 /*
  * The memory devices use the full 32/64 bits of the offset, and so we cannot
