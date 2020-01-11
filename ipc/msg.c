@@ -218,8 +218,6 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 		return id;
 	}
 
-	msg_unlock(msq);
-
 	return msq->q_perm.id;
 }
 
@@ -726,7 +724,6 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		rcu_read_unlock();
 		schedule();
 
-		ipc_lock_by_ptr(&msq->q_perm);
 		ipc_rcu_putref(msq, ipc_rcu_free);
 		if (msq->q_perm.deleted) {
 			err = -EIDRM;
