@@ -30,3 +30,10 @@ config ION_POOL_CACHE_POLICY
 	help
 	  Choose this option if need to explicity set cache policy of the
 	  pages in the page pool.
+
+config ION_LG115X
+	tristate "Ion for lg115x"
+	depends on ION
+	default n
+	help
+	  Choose this option if you wish to use ion on an lg115x
