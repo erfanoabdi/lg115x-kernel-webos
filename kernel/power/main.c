@@ -15,10 +15,115 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/uaccess.h>
+#include <linux/proc_fs.h>
 
 #include "power.h"
 
 DEFINE_MUTEX(pm_mutex);
+
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+unsigned int snapshot_enable = 0;
+// 0 : making, 1 : resume
+unsigned int snapshot_status = 0;
+
+static int __init hib_state_set_snapshot(char *p)
+{
+	snapshot_enable = 1;
+	return 0;
+}
+
+early_param("snapshot", hib_state_set_snapshot);
+
+static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	extern unsigned int snapshot_enable;
+	unsigned char *str;
+
+	if (snapshot_enable == 1) {
+		if (snapshot_status == 0)
+			str = "making";
+		else
+			str = "resume";
+ 	} else {
+		str = "cold";
+	}
+
+	return sprintf(buf, "%s\n", str);
+}
+
+static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t n)
+{
+	return n;
+}
+
+power_attr(mode);
+
+/* comma separated string */
+char *snapshot_dep_parts;
+
+static int show_dep_parts(struct seq_file *m, void *v)
+{
+	if(snapshot_dep_parts)
+		return seq_printf(m, "%s\n", snapshot_dep_parts);
+
+	return 0;
+}
+
+static ssize_t write_dep_parts(struct file *file, const char __user *buffer,
+			     size_t count, loff_t *ppos)
+{
+	char *prev = snapshot_dep_parts;
+
+	snapshot_dep_parts = kmalloc(count + 1, GFP_KERNEL);
+	if (!snapshot_dep_parts)
+		return -ENOMEM;
+	if (copy_from_user(snapshot_dep_parts, buffer, count)) {
+		kfree(snapshot_dep_parts);
+		snapshot_dep_parts = prev;
+		return -EFAULT;
+	}
+	snapshot_dep_parts[count-1] = '\0';
+
+	if (prev)
+		kfree(prev);
+
+	return count;
+}
+
+static int open_dep_parts(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_dep_parts, NULL);
+}
+
+static const struct file_operations dep_parts_fops = {
+	.open = open_dep_parts,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = write_dep_parts
+};
+
+static int __init proc_snapshot_boot_init(void)
+{
+	struct proc_dir_entry *snapshot_boot_ProcEntry;
+	snapshot_boot_ProcEntry = proc_mkdir("snapshot", NULL);
+
+	if (!proc_create("dep_parts", S_IFREG | S_IRWXUGO, 
+		snapshot_boot_ProcEntry, &dep_parts_fops))
+		goto remove_dir;
+
+	return 0;
+	
+remove_dir:
+	remove_proc_entry("snapshot_boot", NULL);
+
+	return -1;
+}
+
+core_initcall(proc_snapshot_boot_init);
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -341,6 +446,9 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 	suspend_state_t state;
 	int error;
 
+#ifdef CONFIG_LG_SNAPSHOT_DENY_STATE
+	return -EACCES;
+#endif
 	error = pm_autosleep_lock();
 	if (error)
 		return error;
@@ -579,6 +687,9 @@ power_attr(pm_freeze_timeout);
 
 static struct attribute * g[] = {
 	&state_attr.attr,
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+	&mode_attr.attr,
+#endif
 #ifdef CONFIG_PM_TRACE
 	&pm_trace_attr.attr,
 	&pm_trace_dev_match_attr.attr,

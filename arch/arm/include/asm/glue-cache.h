@@ -17,7 +17,7 @@
  *	===========
  */
 #undef _CACHE
-#undef MULTI_CACHE
+#define MULTI_CACHE
 
 #if defined(CONFIG_CPU_CACHE_V4)
 # ifdef _CACHE

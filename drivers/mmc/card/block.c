@@ -568,12 +568,306 @@ cmd_err:
 	return err;
 }
 
+struct mmc_ext_ioctl_header
+{
+	unsigned int header;				// 0..3
+	unsigned int cmd_count;				// 4..7
+	unsigned int chk_sum;				// 8..11
+	unsigned int reserved;				// 12..15
+} __attribute__((packed));
+
+struct mmc_ext_ioctl_subcommand
+{
+	unsigned char type;					// 0
+	unsigned char mmc_opcode;			// 1
+	unsigned char mmc_flags;			// 2
+	unsigned char data_rw;				// 3		0:no data, 1:read, 2:write
+	unsigned int  mmc_arg;				// 4..7
+	unsigned int  timeout_ms;			// 8..11
+	unsigned int  data_size;			// 12..15
+	unsigned int  buff;					// 16..19
+	unsigned char reserved[8];			// 20..28
+	unsigned int  chksum;				// 29..31
+} __attribute__((packed));
+
+struct mmc_ext_ioctl
+{
+	struct mmc_ext_ioctl_header header;				// 0..15
+	struct mmc_ext_ioctl_subcommand subcmd[15];		// 16..495
+	unsigned char reserved[16];						// 496..511
+} __attribute__((packed));
+
+static int mmc_blk_ioctl_cmd_extended(struct block_device *bdev,	unsigned int user_cmd, unsigned long user_arg)
+{
+	struct mmc_blk_data *md;
+	struct mmc_card *card;
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct mmc_request mrq = {0};
+	struct scatterlist sg;
+	struct mmc_ext_ioctl *cmd_buff = NULL;
+	unsigned char *data_buff = NULL;
+	unsigned int data_size = 0;
+	unsigned int rca;
+	unsigned int cid[4];
+	unsigned int chksum = 0;
+	unsigned int cmd13timeout = 0;
+	unsigned int cmd13current = 0;
+
+	int err = 0;
+	int i;
+
+	#define EXTIOCTL_SIG 0x84B
+
+	if ((_IOC_TYPE(user_cmd) != MMC_BLOCK_MAJOR) ||
+		(_IOC_SIZE(user_cmd) != EXTIOCTL_SIG))
+		return -EINVAL;
+
+	if (_IOC_NR(user_cmd) != 'L')
+		return -EINVAL;
+
+#define EMMC_LG_SUB_NORMAL				0
+#define EMMC_LG_SUB_GET_CID				1
+
+#define EMMC_NO_DATA	0
+#define EMMC_DATA_READ	1
+#define EMMC_DATA_WRITE	2
+
+	md = mmc_blk_get(bdev->bd_disk);
+	if (!md)
+	{
+		err = -EINVAL;
+		mmc_blk_put(md);
+		return err;
+	}
+
+	card = md->queue.card;
+	if (IS_ERR(card))
+	{
+		err = PTR_ERR(card);
+		mmc_blk_put(md);
+		return err;
+	}
+
+	cid[0] = card->raw_cid[0];
+	cid[1] = card->raw_cid[1];
+	cid[2] = card->raw_cid[2];
+	cid[3] = card->raw_cid[3];
+
+	rca = card->rca;
+
+	mmc_claim_host(card->host);
+
+	cmd_buff = NULL;
+	cmd_buff = kzalloc(sizeof(struct mmc_ext_ioctl), GFP_KERNEL);
+	if(!cmd_buff)
+	{
+		mmc_release_host(card->host);
+		mmc_blk_put(md);
+
+		err = -ENOMEM;
+		return err;
+	}
+
+	if (copy_from_user((void *)cmd_buff, (void __user*)user_arg, 0x200))
+	{
+		mmc_release_host(card->host);
+		mmc_blk_put(md);
+
+		err = -ENOMEM;
+		return err;
+	}
+
+	if ((cmd_buff->header.cmd_count + cmd_buff->header.header) != cmd_buff->header.chk_sum)
+	{
+		printk("EMMC >> EXT IOCTL CMD HEADER chksum ERROR\n");
+
+		mmc_release_host(card->host);
+		mmc_blk_put(md);
+
+		err = -ENOMEM;
+		return err;
+	}
+
+	for (i=0; i<cmd_buff->header.cmd_count;)
+	{
+		chksum = cmd_buff->subcmd[i].type;
+		chksum ^= cmd_buff->subcmd[i].mmc_opcode;
+		chksum ^= cmd_buff->subcmd[i].mmc_flags;
+		chksum ^= cmd_buff->subcmd[i].data_rw;
+		chksum ^= cmd_buff->subcmd[i].mmc_arg;
+		chksum ^= cmd_buff->subcmd[i].timeout_ms;
+		chksum ^= cmd_buff->subcmd[i].data_size;
+		chksum ^= cmd_buff->subcmd[i].buff;
+
+		if (chksum != cmd_buff->subcmd[i].chksum)
+		{
+			printk("EMMC >> EXT IOCTL SUB CMD chksum ERROR\n");
+
+			err = -ENOMEM;
+			break;
+		}
+
+		if(cmd_buff->subcmd[i].type == EMMC_LG_SUB_GET_CID)
+		{
+			if(copy_to_user((void __user*)(cmd_buff->subcmd[i].buff), (void *)(&cid[0]), 4*sizeof(u32)))
+			{
+				err = -EFAULT;
+				break;
+			}
+
+			i++;
+			continue;
+		}
+
+		cmd.opcode = cmd_buff->subcmd[i].mmc_opcode;
+		if(cmd_buff->subcmd[i].mmc_opcode == MMC_SEND_STATUS)
+		{
+			cmd.arg = rca << 16;
+
+			if (cmd13timeout == 0)
+			{
+				cmd13current = 0;
+				if (cmd_buff->subcmd[i].mmc_arg == 0)			// default cmd13 timeout value 1000ms
+					cmd13timeout = (1000 / 20);
+				else
+					cmd13timeout = (cmd_buff->subcmd[i].mmc_arg / 20);
+				cmd13timeout++;
+			}
+		}
+		else
+		{
+			cmd.arg = cmd_buff->subcmd[i].mmc_arg;
+			cmd13timeout = 0;
+			cmd13current = 0;
+		}
+		cmd.flags = cmd_buff->subcmd[i].mmc_flags;
+		cmd.cmd_timeout_ms = 0;
+		data_size = cmd_buff->subcmd[i].data_size;
+
+		if (cmd_buff->subcmd[i].data_rw > 0)
+		{
+			if(data_buff == NULL)
+			{
+				data_buff = kzalloc(data_size, GFP_KERNEL);
+				if(!data_buff)
+				{
+					err = -ENOMEM;
+					data_buff = NULL;
+					break;
+				}
+			}
+
+			data.sg = &sg;
+			data.sg_len = 1;
+			data.blksz = 512;
+			data.blocks = data_size / 512;
+
+			sg_init_one(data.sg, data_buff, data_size);
+
+			if (cmd_buff->subcmd[i].data_rw == EMMC_DATA_READ)
+				data.flags = MMC_DATA_READ;
+			else
+				data.flags = MMC_DATA_WRITE;
+			mrq.data = &data;
+		}
+		else
+		{
+			mrq.data = NULL;
+			cmd.data = NULL;
+		}
+
+		mrq.cmd = &cmd;
+
+		// write the data into the buffer
+		if (cmd_buff->subcmd[i].data_rw == EMMC_DATA_WRITE)
+		{
+			if (copy_from_user(data_buff, (void __user*)(cmd_buff->subcmd[i].buff), 0x200))
+			{
+				err = -EFAULT;
+				break;
+			}
+		}
+
+		mmc_wait_for_req(card->host, &mrq);
+
+		if (cmd.error)
+		{
+			dev_err(mmc_dev(card->host), "%s: cmd error %d\n", __func__, cmd.error);
+			err = cmd.error;
+			break;
+		}
+
+		if(cmd_buff->subcmd[i].mmc_opcode == MMC_SEND_STATUS)
+		{
+			if (cmd.resp[0] != 0x900)
+			{
+				if (cmd13current > cmd13timeout)
+				{
+					err = -EFAULT;
+					break;
+				}
+
+				cmd13current++;
+				msleep(5);
+
+				continue;
+			}
+			else
+			{
+				cmd13current = 0;
+				cmd13timeout = 0;
+			}
+		}
+
+		if (data.error)
+		{
+			dev_err(mmc_dev(card->host), "%s: data error %d\n", __func__, data.error);
+			err = data.error;
+			break;
+		}
+
+		if (cmd_buff->subcmd[i].data_rw == EMMC_DATA_READ)
+		{
+			if (copy_to_user((void __user*)(cmd_buff->subcmd[i].buff), data_buff, data_size))
+			{
+				err = -EFAULT;
+				break;
+			}
+		}
+
+		if(data_buff)
+	 	{
+			kfree(data_buff);
+			data_buff = NULL;
+	 	}
+
+		i++;
+	}
+
+	mmc_release_host(card->host);
+	mmc_blk_put(md);
+
+	if(cmd_buff)
+		kfree(cmd_buff);
+
+	if(data_buff)
+		kfree(data_buff);
+
+//	printk("IOCTL CMD RET = %u\n",err);
+	return err;
+}
+
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
 	int ret = -EINVAL;
+
 	if (cmd == MMC_IOC_CMD)
 		ret = mmc_blk_ioctl_cmd(bdev, (struct mmc_ioc_cmd __user *)arg);
+	else
+		ret = mmc_blk_ioctl_cmd_extended(bdev, cmd, arg);
+
 	return ret;
 }
 

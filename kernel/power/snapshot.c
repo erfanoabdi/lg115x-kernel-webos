@@ -282,7 +282,6 @@ struct memory_bitmap {
 };
 
 /* Functions that operate on memory bitmaps */
-
 static void memory_bm_position_reset(struct memory_bitmap *bm)
 {
 	bm->cur.block = list_entry(bm->blocks.next, struct bm_block, hook);
@@ -568,7 +567,6 @@ static bool memory_bm_pfn_present(struct memory_bitmap *bm, unsigned long pfn)
  *	It is required to run memory_bm_position_reset() before the first call to
  *	this function.
  */
-
 static unsigned long memory_bm_next_pfn(struct memory_bitmap *bm)
 {
 	struct bm_block *bb;
@@ -1601,6 +1599,7 @@ asmlinkage int swsusp_save(void)
 	 * Kill them.
 	 */
 	drain_local_pages(NULL);
+
 	copy_data_pages(&copy_bm, &orig_bm);
 
 	/*

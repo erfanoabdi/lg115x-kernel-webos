@@ -2053,7 +2053,7 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 {
 	struct mmc_host *host = card->host;
 	unsigned int max_discard, x, y, qty = 0, max_qty, timeout;
-	unsigned int last_timeout = 0;
+	unsigned int last_timeout = 0, aligned_qty;
 
 	if (card->erase_shift)
 		max_qty = UINT_MAX >> card->erase_shift;
@@ -2080,16 +2080,28 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 	if (!qty)
 		return 0;
 
-	if (qty == 1)
-		return 1;
+	if (arg & MMC_TRIM_ARGS) {
+		/*
+		 * The requested number of sectors may not be aligned to an
+		 * erase group, so we have to decrease the quantity by 1 (unless
+		 * it is 1) e.g. trimming 2 sectors could cause 2 erase groups
+		 * to be affected even though 2 sectors is less than the size of
+		 * 1 erase group.
+		 */
+		if (qty == 1)
+			return 1;
+		aligned_qty = qty - 1;
+	} else {
+		aligned_qty = qty;
+	}
 
 	/* Convert qty to sectors */
 	if (card->erase_shift)
-		max_discard = --qty << card->erase_shift;
+		max_discard = aligned_qty << card->erase_shift;
 	else if (mmc_card_sd(card))
 		max_discard = qty;
 	else
-		max_discard = --qty * card->erase_size;
+		max_discard = aligned_qty * card->erase_size;
 
 	return max_discard;
 }

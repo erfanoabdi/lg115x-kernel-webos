@@ -249,3 +249,16 @@ config SYSV68_PARTITION
 	  partition table format used by Motorola Delta machines (using
 	  sysv68).
 	  Otherwise, say N.
+
+config LGEMMC_PARTITION
+	bool "LG DTV(EMMC partition tables) support" if PARTITION_ADVANCED
+	default y if ARCH_LG115X
+	help
+	  Say Y here.
+
+config LGEMMC_PARTITION_LA
+	bool "large address support for LG DTV EMMC partition" if PARTITION_ADVANCED
+	depends on LGEMMC_PARTITION
+	default y if MACH_LG1154
+	help
+	  Say Y here.

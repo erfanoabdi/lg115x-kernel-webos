@@ -60,6 +60,7 @@
 #include <linux/page-debug-flags.h>
 #include <linux/hugetlb.h>
 #include <linux/sched/rt.h>
+#include <linux/low-mem-notify.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -2641,6 +2642,10 @@ retry_cpuset:
 				&preferred_zone);
 	if (!preferred_zone)
 		goto out;
+	
+#ifdef CONFIG_LOW_MEM_NOTIFY
+	low_mem_notify();
+#endif
 
 #ifdef CONFIG_CMA
 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)

@@ -29,6 +29,8 @@ OBJS	+= debug.o
 endif
 FONTC	= $(srctree)/drivers/video/console/font_acorn_8x8.c
 
+GCOV_PROFILE		:= n
+
 # string library code (-Os is enforced to keep it much smaller)
 OBJS		+= string.o
 CFLAGS_string.o	:= -Os

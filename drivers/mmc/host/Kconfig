@@ -190,6 +190,21 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
+config MMC_SDHCI_LG115X
+        tristate "SDHCI support on LG115X SoC"
+        depends on MMC_SDHCI && ((ARCH_LG1K) || (ARCH_LG115X))
+        help
+          This selects the Secure Digital Host Controller Interface (SDHCI)
+          often referrered to as the HSMMC block in some of the LG115X
+          range of SoC.
+
+          Note, due to the problems with DMA, the DMA support is only
+          available with CONFIG_EXPERIMENTAL is selected.
+
+          If you have a controller with this interface, say Y or M here.
+
+          If unsure, say N.
+
 config MMC_SDHCI_SIRF
 	tristate "SDHCI support on CSR SiRFprimaII and SiRFmarco SoCs"
 	depends on ARCH_SIRF

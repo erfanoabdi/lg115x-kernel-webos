@@ -246,6 +246,10 @@ struct mem_cgroup_eventfd_list {
 static void mem_cgroup_threshold(struct mem_cgroup *memcg);
 static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
 
+#ifdef CONFIG_MEMCG_MINFREE
+static void mem_cgroup_minfree_threshold(struct mem_cgroup *memcg);
+#endif
+
 /*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
@@ -321,6 +325,10 @@ struct mem_cgroup {
 	/* thresholds for mem+swap usage. RCU-protected */
 	struct mem_cgroup_thresholds memsw_thresholds;
 
+#ifdef CONFIG_MEMCG_MINFREE
+	/* thresholds for minfree. RCU-protected */
+	struct mem_cgroup_thresholds minfree_thresholds;
+#endif
 	/* For oom notifier event fd */
 	struct list_head oom_notify;
 
@@ -1053,6 +1061,10 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
 		preempt_enable();
 
 		mem_cgroup_threshold(memcg);
+
+#ifdef CONFIG_MEMCG_MINFREE
+		mem_cgroup_minfree_threshold(memcg);
+#endif
 		if (unlikely(do_softlimit))
 			mem_cgroup_update_tree(memcg, page);
 #if MAX_NUMNODES > 1
@@ -3524,6 +3536,45 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
 	__memcg_create_cache_enqueue(memcg, cachep);
 	memcg_resume_kmem_account();
 }
+
+#ifdef CONFIG_MEMCG_MINFREE
+static inline u64 mem_cgroup_minfree(struct mem_cgroup *memcg)
+{
+	u64 _free = global_page_state(NR_FREE_PAGES);
+	u64 _file = global_page_state(NR_FILE_PAGES) -
+						global_page_state(NR_SHMEM);
+#ifdef CONFIG_SWAP
+	_free += atomic_long_read(&nr_swap_pages);
+	_file -= total_swapcache_pages();
+#endif
+	return (_free > _file) ? _free : _file;
+}
+
+static u64 mem_cgroup_minfree_read(struct cgroup *cont, struct cftype *cft)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	return mem_cgroup_minfree(memcg);
+}
+
+static u64 mem_cgroup_minfree_level(struct cgroup *cont, struct cftype *cft)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	struct mem_cgroup_threshold_ary *t;
+	int level = -1;
+
+	rcu_read_lock();
+	t = rcu_dereference(memcg->minfree_thresholds.primary);
+	if (!t)
+		goto unlock;
+
+	level = t->current_threshold;
+
+unlock:
+	rcu_read_unlock();
+	return (u64)level;
+}
+#endif
+
 /*
  * Return the kmem_cache we're supposed to use for a slab allocation.
  * We try to use the current memcg's version of the cache.
@@ -5593,6 +5644,44 @@ static int compare_thresholds(const void *a, const void *b)
 	return 0;
 }
 
+#ifdef CONFIG_MEMCG_MINFREE
+static int bigorder_thresholds(const void *a, const void *b)
+{
+	const struct mem_cgroup_threshold *_a = a;
+	const struct mem_cgroup_threshold *_b = b;
+
+	return _b->threshold - _a->threshold;
+}
+
+static void mem_cgroup_minfree_threshold(struct mem_cgroup *memcg)
+{
+	struct mem_cgroup_threshold_ary *t;
+	u64 free;
+	int i;
+
+	rcu_read_lock();
+	t = rcu_dereference(memcg->minfree_thresholds.primary);
+	if (!t)
+		goto unlock;
+
+	free = mem_cgroup_minfree(memcg);
+
+	i = t->current_threshold;
+
+	for (; i > 0 && unlikely(t->entries[i].threshold < free); i--)
+		eventfd_signal(t->entries[i-1].eventfd, 1);
+
+	i++;
+
+	for (; i < t->size && unlikely(t->entries[i].threshold >= free); i++)
+		eventfd_signal(t->entries[i].eventfd, 1);
+
+	t->current_threshold = i - 1;
+unlock:
+	rcu_read_unlock();
+}
+#endif
+
 static int mem_cgroup_oom_notify_cb(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup_eventfd_list *ev;
@@ -5771,6 +5860,142 @@ swap_buffers:
 unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
+
+#ifdef CONFIG_MEMCG_MINFREE
+static int mem_cgroup_minfree_register_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_threshold_ary *new;
+	u64 threshold, free;
+	int i, size, ret = 0;
+
+	threshold = simple_strtoull(args, NULL, 0);
+
+	mutex_lock(&memcg->thresholds_lock);
+
+	thresholds = &memcg->minfree_thresholds;
+
+	free = mem_cgroup_minfree(memcg);
+
+	/* Check if a threshold crossed before adding a new one */
+	if (thresholds->primary)
+		mem_cgroup_minfree_threshold(memcg);
+
+	size = thresholds->primary ? thresholds->primary->size + 1 : 1;
+
+	/* Allocate memory for new array of thresholds */
+	new = kmalloc(sizeof(*new) + size * sizeof(struct mem_cgroup_threshold),
+			GFP_KERNEL);
+	if (!new) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+	new->size = size;
+
+	/* Copy thresholds (if any) to new array */
+	if (thresholds->primary) {
+		memcpy(new->entries, thresholds->primary->entries, (size - 1) *
+				sizeof(struct mem_cgroup_threshold));
+	}
+
+	/* Add new threshold */
+	new->entries[size - 1].eventfd = eventfd;
+	new->entries[size - 1].threshold = threshold;
+
+	/* Sort thresholds. Registering of new threshold isn't time-critical */
+	sort(new->entries, size, sizeof(struct mem_cgroup_threshold),
+			bigorder_thresholds, NULL);
+
+	/* Find current threshold */
+	new->current_threshold = -1;
+	for (i = 0; i < size; i++) {
+		if (new->entries[i].threshold >= free)
+			++new->current_threshold;
+	}
+
+	/* Free old spare buffer and save old primary buffer as spare */
+	kfree(thresholds->spare);
+	thresholds->spare = thresholds->primary;
+
+	rcu_assign_pointer(thresholds->primary, new);
+
+	/* To be sure that nobody uses thresholds */
+	synchronize_rcu();
+
+unlock:
+	mutex_unlock(&memcg->thresholds_lock);
+
+	return ret;
+}
+
+static void mem_cgroup_minfree_unregister_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_threshold_ary *new;
+	u64 free;
+	int i, j, size = 0;
+
+	mutex_lock(&memcg->thresholds_lock);
+
+	thresholds = &memcg->minfree_thresholds;
+	if (!thresholds->primary)
+		goto unlock;
+
+	free = mem_cgroup_minfree(memcg);
+
+	mem_cgroup_minfree_threshold(memcg);
+
+	/* Calculate new number of threshold */
+	for (i = 0; i < thresholds->primary->size; i++) {
+		if (thresholds->primary->entries[i].eventfd != eventfd)
+			size++;
+	}
+
+	new = thresholds->spare;
+
+	/* Set thresholds array to NULL if we don't have thresholds */
+	if (!size) {
+		kfree(new);
+		new = NULL;
+		goto swap_buffers;
+	}
+
+	new->size = size;
+
+	/* Copy thresholds and find current threshold */
+	new->current_threshold = -1;
+	for (i = 0, j = 0; i < thresholds->primary->size; i++) {
+		if (thresholds->primary->entries[i].eventfd == eventfd)
+			continue;
+
+		new->entries[j] = thresholds->primary->entries[i];
+		if (new->entries[j].threshold >= free)
+			++new->current_threshold;
+
+		j++;
+	}
+
+swap_buffers:
+	/* Swap primary and spare array */
+	thresholds->spare = thresholds->primary;
+	/* If all events are unregistered, free the spare array */
+	if (!new) {
+		kfree(thresholds->spare);
+		thresholds->spare = NULL;
+	}
+
+	rcu_assign_pointer(thresholds->primary, new);
+
+	/* To be sure that nobody uses thresholds */
+	synchronize_rcu();
+unlock:
+	mutex_unlock(&memcg->thresholds_lock);
+}
+#endif
 
 static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
 	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
@@ -6004,6 +6229,18 @@ static struct cftype mem_cgroup_files[] = {
 		.read_seq_string = mem_cgroup_slabinfo_read,
 	},
 #endif
+#endif
+#ifdef CONFIG_MEMCG_MINFREE
+	{
+		.name = "minfree",
+		.read_u64 = mem_cgroup_minfree_read,
+		.register_event = mem_cgroup_minfree_register_event,
+		.unregister_event = mem_cgroup_minfree_unregister_event,
+	},
+	{
+		.name = "minfree_level",
+		.read_u64 = mem_cgroup_minfree_level,
+	},
 #endif
 	{ },	/* terminate */
 };

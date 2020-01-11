@@ -865,6 +865,15 @@ static void usb_stor_scan_dwork(struct work_struct *work)
 			scan_dwork.work);
 	struct device *dev = &us->pusb_intf->dev;
 
+#ifdef CONFIG_LG_CHANGE
+	char	envp1[20], envp2[20];
+	char	*argv[] = {"/bin/read_scan_complete", NULL};
+	char	*envp[] = {"USB_SCAN_COMPLETE=YES", envp1, envp2, NULL};
+	
+	sprintf(envp1,"BUSNUM=%d",us->pusb_dev->bus->busnum);
+	sprintf(envp2,"DEVNUM=%d",us->pusb_dev->devnum);
+#endif
+
 	dev_dbg(dev, "starting scan\n");
 
 	/* For bulk-only devices, determine the max LUN value */
@@ -877,6 +886,11 @@ static void usb_stor_scan_dwork(struct work_struct *work)
 	dev_dbg(dev, "scan complete\n");
 
 	/* Should we unbind if no devices were detected? */
+
+#ifdef CONFIG_LG_CHANGE
+	/* for checking USB scan completion */
+	call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+#endif
 
 	usb_autopm_put_interface(us->pusb_intf);
 	clear_bit(US_FLIDX_SCAN_PENDING, &us->dflags);
@@ -1085,4 +1099,19 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
+#ifdef CONFIG_USER_INITCALL_USB
+int usb_storage_driver_init(void)
+{
+	return usb_register(&usb_storage_driver);
+}
+
+static void __exit usb_storage_driver_exit(void)
+{
+	return usb_deregister(&usb_storage_driver);
+}
+
+user_initcall_grp("USB", usb_storage_driver_init);
+module_exit(usb_storage_driver_exit)
+#else
 module_usb_driver(usb_storage_driver);
+#endif

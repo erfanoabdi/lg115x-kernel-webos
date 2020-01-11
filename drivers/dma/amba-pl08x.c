@@ -2077,10 +2077,31 @@ static struct amba_id pl08x_ids[] = {
 
 MODULE_DEVICE_TABLE(amba, pl08x_ids);
 
+static int pl08x_suspend(struct amba_device *adev, pm_message_t state)
+{
+	return 0;
+}
+
+static int pl08x_resume(struct amba_device *adev)
+{
+	struct pl08x_driver_data *pl08x;
+
+	pl08x = amba_get_drvdata(adev);
+
+	pl08x_ensure_on(pl08x);
+
+	writel(0x000000ff, pl08x->base + PL080_ERR_CLEAR);
+	writel(0x000000ff, pl08x->base + PL080_TC_CLEAR);
+
+	return 0;
+}
+
 static struct amba_driver pl08x_amba_driver = {
 	.drv.name	= DRIVER_NAME,
 	.id_table	= pl08x_ids,
 	.probe		= pl08x_probe,
+	.suspend	= pl08x_suspend,
+	.resume		= pl08x_resume
 };
 
 static int __init pl08x_init(void)

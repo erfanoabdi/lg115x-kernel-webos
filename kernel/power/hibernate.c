@@ -367,6 +367,12 @@ int hibernation_snapshot(int platform_mode)
 	else
 		error = create_image(platform_mode);
 
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+	extern unsigned int snapshot_status;
+	if(!in_suspend)
+		snapshot_status = 1;
+#endif
+
 	/*
 	 * In the case that we call create_image() above, the control
 	 * returns here (1) after the image has been created or the
@@ -586,7 +592,9 @@ static void power_down(void)
 #ifdef CONFIG_SUSPEND
 	int error;
 #endif
-
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+	return;
+#endif
 	switch (hibernation_mode) {
 	case HIBERNATION_REBOOT:
 		kernel_restart(NULL);
@@ -632,6 +640,14 @@ int hibernate(void)
 {
 	int error;
 
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+	extern unsigned int snapshot_enable;
+	if(!snapshot_enable)
+		return -EPERM;
+
+	/* Check if the device is there */
+	swsusp_resume_device = name_to_dev_t(resume_file);
+#endif
 	lock_system_sleep();
 	/* The snapshot device should not be opened while we're running */
 	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
@@ -672,10 +688,17 @@ int hibernate(void)
 		        flags |= SF_CRC32_MODE;
 
 		pr_debug("PM: writing image.\n");
+
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+		error = rawdev_snapshot_write(flags);
+#else
 		error = swsusp_write(flags);
+#endif
+
 		swsusp_free();
 		if (!error)
 			power_down();
+
 		in_suspend = 0;
 		pm_restore_gfp_mask();
 	} else {
@@ -845,7 +868,9 @@ close_finish:
 	goto Finish;
 }
 
+#ifndef CONFIG_LG_SNAPSHOT_BOOT
 late_initcall(software_resume);
+#endif
 
 
 static const char * const hibernation_modes[] = {

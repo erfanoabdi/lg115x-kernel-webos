@@ -69,6 +69,34 @@ config HIBERNATION
 config ARCH_SAVE_PAGE_KEYS
 	bool
 
+config LG_SNAPSHOT_BOOT
+	bool "Support LG snapshot boot feature(based on linux kernel hibernation feature, software suspend,)"
+	depends on HIBERNATION
+	default n
+
+config SNAPSHOT_IMAGE_COMPRESSION
+	bool "Snapshot image compression"
+	depends on LG_SNAPSHOT_BOOT
+	default n
+	---help---
+	    Use compression to make smaller snapshot image
+
+config SNAPSHOT_COMPRESS_TYPE
+	string "Compress algorithm for snapshot image [lzo, lz4 or lz4hc]"
+	depends on SNAPSHOT_IMAGE_COMPRESSION
+	default ""
+	---help---
+	    Define compression type of snapshot image.
+	    You can use lzo, lz4 or lz4hc. Generally lz4hc has faster decompress time but longer compress time
+
+config LG_SNAPSHOT_DENY_STATE
+	bool "Disable /sys/power/state for security reason"
+	depends on LG_SNAPSHOT_BOOT
+	default n
+	---help---
+	   disable /sys/power/state for security reason. please use /dev/misc/lgsnap 
+
+
 config PM_STD_PARTITION
 	string "Default resume partition"
 	depends on HIBERNATION
@@ -274,3 +302,4 @@ config PM_GENERIC_DOMAINS_RUNTIME
 config CPU_PM
 	bool
 	depends on SUSPEND || CPU_IDLE
+

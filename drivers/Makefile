@@ -152,3 +152,6 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
+ifdef CONFIG_LG_BUILTIN_KDRIVER
+obj-y				+= lg_kdriver/core/
+endif

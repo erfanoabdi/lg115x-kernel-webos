@@ -1060,6 +1060,7 @@ static void macb_configure_dma(struct macb *bp)
 		dmacfg |= GEM_BF(FBLDO, 16);
 		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
 		dmacfg &= ~GEM_BIT(ENDIA);
+		dmacfg |= GEM_BIT(BDBRW);
 		gem_writel(bp, DMACFG, dmacfg);
 	}
 }
@@ -1236,10 +1237,15 @@ static int macb_open(struct net_device *dev)
 	int err;
 
 	netdev_dbg(bp->dev, "open\n");
-
+#if 0
+	/*
+	 * AUG 05 2013 neidhard.kim@lge.com
+	 * TEMPORARILY disable this explicit link-detection to
+	 * avoid 2-minute delay when the cable is not plugged.
+	 */
 	/* carrier starts down */
 	netif_carrier_off(dev);
-
+#endif
 	/* if the phy is not yet register, retry later*/
 	if (!bp->phy_dev)
 		return -EAGAIN;
@@ -1622,7 +1628,13 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
+	/*
+	 * TEMPORARILY disable this explicit link-detection to
+	 * avoid 2-minute delay when the cable is not plugged.
+	 */
+#if 0
 	netif_carrier_off(dev);
+#endif
 
 	netdev_info(dev, "Cadence %s at 0x%08lx irq %d (%pM)\n",
 		    macb_is_gem(bp) ? "GEM" : "MACB", dev->base_addr,

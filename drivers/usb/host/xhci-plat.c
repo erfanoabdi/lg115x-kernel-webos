@@ -186,11 +186,40 @@ static int xhci_plat_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef	CONFIG_PM
+
+static int xhci_plat_suspend(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	return xhci_suspend(xhci);
+}
+
+static int xhci_plat_resume(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	return xhci_resume(xhci, 1);
+}
+
+static struct dev_pm_ops const xhci_plat_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(xhci_plat_suspend, xhci_plat_resume)
+};
+
+#define	XHCI_PLAT_PM_OPS	(&xhci_plat_pm_ops)
+
+#else	/* CONFIG_PM */
+
+#define	XHCI_PLAT_PM_OPS	NULL
+
+#endif	/* CONFIG_PM */
+
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_plat_probe,
 	.remove	= xhci_plat_remove,
 	.driver	= {
-		.name = "xhci-hcd",
+		.name	= "xhci-hcd",
+		.pm	= XHCI_PLAT_PM_OPS,
 	},
 };
 MODULE_ALIAS("platform:xhci-hcd");

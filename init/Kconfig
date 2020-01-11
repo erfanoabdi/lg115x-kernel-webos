@@ -98,10 +98,13 @@ config HAVE_KERNEL_XZ
 config HAVE_KERNEL_LZO
 	bool
 
+config HAVE_KERNEL_LZ4
+	bool
+
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
-	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO || HAVE_KERNEL_LZ4
 	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
@@ -167,6 +170,32 @@ config KERNEL_LZO
 	  Its compression ratio is the poorest among the choices. The kernel
 	  size is about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
+
+config KERNEL_LG_LZO
+	bool "LG_LZO"
+	depends on LG_KERNEL_EXPAND
+	help
+	  Its compression method use the same alogrithm as KERNEL_LZO but
+	  file compressor(package) is different.
+	  MKIMAGE=scripts/mkimageIt also do not include the self decompressor in zImage.
+
+config KERNEL_LZ4
+	bool "LZ4"
+	depends on HAVE_KERNEL_LZ4
+	help
+	  LZ4 is an LZ77-type compressor with a fixed, byte-oriented encoding.
+	  A preliminary version of LZ4 de/compression tool is available at
+	  <https://code.google.com/p/lz4/>.
+
+	  Its compression ratio is worse than LZO. The size of the kernel
+	  is about 8% bigger than LZO. But the decompression speed is
+	  faster than LZO.
+
+config KERNEL_LG_LZ4
+	bool "LG_LZ4"
+	depends on LG_KERNEL_EXPAND
+	help
+	  Compress kerenl image with LZ4 algorithm. It brings higher decompression speed then LZO
 
 endchoice
 
@@ -946,6 +975,12 @@ config CGROUP_HUGETLB
 	  beforehand how much HugeTLB pages it would require for its use. The
 	  control group is tracked in the third page lru pointer. This means
 	  that we cannot use the controller with huge page less than 3 pages.
+
+config MEMCG_MINFREE
+	bool "Memory Resource Controller Minfree notify"
+	depends on MEMCG
+	help
+	  The Minfree level notification based on free pages.
 
 config CGROUP_PERF
 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"

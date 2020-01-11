@@ -127,6 +127,11 @@ static void jfs_destroy_inode(struct inode *inode)
 {
 	struct jfs_inode_info *ji = JFS_IP(inode);
 
+#ifdef CONFIG_LG_JFS_USB_PULLOUT
+ 	if (inode->i_sb && inode->i_sb->s_flags & MS_RDONLY) {
+ 		list_del_init(&ji->anon_inode_list);
+ 	}
+#endif
 	BUG_ON(!list_empty(&ji->anon_inode_list));
 
 	spin_lock_irq(&ji->ag_lock);

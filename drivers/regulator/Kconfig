@@ -514,5 +514,7 @@ config REGULATOR_AS3711
 	  This driver provides support for the voltage regulators on the
 	  AS3711 PMIC
 
+source "drivers/regulator/lg1k/Kconfig"
+
 endif
 

@@ -13,6 +13,63 @@ struct swsusp_info {
 	unsigned long		size;
 } __attribute__((aligned(PAGE_SIZE)));
 
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+#define GET_SNAP_HEADER(header) ((void *)((unsigned int)header + PAGE_SIZE - ALIGN(sizeof(struct snapshot_header), 32)))
+
+#define LG_SNAPSHOT_MAGIC_CODE 0x03160326
+#define PART_TYPE_NAME_LEN 20
+#define VALUE_NAME_LEN 20
+#define MAX_DEP_PARTS 10
+#define MAX_PART_VALUES 2
+
+#ifdef CONFIG_SNAPSHOT_IMAGE_COMPRESSION
+#define SNAP_COMP_ALGO CONFIG_SNAPSHOT_COMPRESS_TYPE
+#else
+#define SNAP_COMP_ALGO ""
+#endif
+
+enum compress_algorithm {
+	UNCOMPRESSED,
+	LZO,
+	LZ4HC,
+	LZ4,
+};
+
+struct dep_parts {
+	char part_type[PART_TYPE_NAME_LEN];
+	char value_name[MAX_PART_VALUES][VALUE_NAME_LEN];
+	int nr_dep_parts;
+
+	struct dep_part_info {
+		int partnum;
+		unsigned int value[MAX_PART_VALUES];
+	} dep_part_info[MAX_DEP_PARTS];
+};
+
+struct snapshot_header {
+	unsigned long magic;
+	enum compress_algorithm compress_algo;
+	unsigned long image_size;
+	unsigned int  pfn_mi_cnt;
+	unsigned long metadata_start_offset_for_comp;
+	u32 crc;
+	unsigned long pa_resume_func;
+	struct dep_parts deps;
+};
+
+/* For adjacent pfn merge */
+struct merge_block_info {
+	unsigned long merged_cnt;
+	unsigned long compblock_len;
+};
+
+struct pfn_merge_info {
+	unsigned int start_pfn;
+	unsigned int compressed;
+	struct merge_block_info info;
+};
+#endif //CONFIG_LG_SNAPSHOT_BOOT
+
 #ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
 extern void __init hibernate_reserved_size_init(void);
@@ -156,6 +213,12 @@ extern void swsusp_free(void);
 extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
 extern void swsusp_close(fmode_t);
+
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+/* kernel/power/rawdev_snapshot_io.c */
+int rawdev_snapshot_write(unsigned int flags);
+#endif
+
 #ifdef CONFIG_SUSPEND
 extern int swsusp_unmark(void);
 #endif

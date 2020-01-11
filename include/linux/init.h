@@ -216,6 +216,21 @@ extern bool initcall_debug;
 #define __exitcall(fn) \
 	static exitcall_t __exitcall_##fn __exit_call = fn
 
+#ifdef CONFIG_LG_USER_INITCALL
+struct user_initcall_param {
+	char	*name;
+	initcall_t fn;
+};
+
+#define user_initcall(fn) \
+	static struct user_initcall_param __initcall_##fn \
+	__used __section(.user_initcall.init) = {"default", fn}
+
+#define user_initcall_grp(group, fn) \
+	static struct user_initcall_param __initcall_group_##fn \
+	__used __section(.user_initcall.init) = {group, fn}
+#endif
+
 #define console_initcall(fn) \
 	static initcall_t __initcall_##fn \
 	__used __section(.con_initcall.init) = fn

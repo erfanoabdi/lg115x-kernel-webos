@@ -17,7 +17,7 @@
  * particular, it never attempts higher order page allocation which is
  * very likely to fail under memory pressure. On the other hand, if we
  * just use single (0-order) pages, it would suffer from very high
- * fragmentation -- any object of size PAGE_SIZE/2 or larger would occupy
+ * fragmentation --- any object of size PAGE_SIZE/2 or larger would occupy
  * an entire page. This was one of the major issues with its predecessor
  * (xvmalloc).
  *

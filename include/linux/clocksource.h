@@ -330,6 +330,9 @@ extern cycle_t clocksource_mmio_readw_down(struct clocksource *);
 
 extern int clocksource_mmio_init(void __iomem *, const char *,
 	unsigned long, int, unsigned, cycle_t (*)(struct clocksource *));
+extern int clocksource_mmio_init_preset(void __iomem *, const char *,
+	unsigned int, unsigned int, int, unsigned,
+	cycle_t (*)(struct clocksource *));
 
 extern int clocksource_i8253_init(void);
 

@@ -751,7 +751,7 @@ struct input_keymap_entry {
 
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
-#define KEY_MAX			0x2ff
+#define KEY_MAX			0x500
 #define KEY_CNT			(KEY_MAX+1)
 
 /*

@@ -40,6 +40,10 @@ static char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
 static int root_wait;
 
+#ifdef CONFIG_LG_INIT
+static char __initdata lginit_device_name[64];
+#endif
+
 dev_t ROOT_DEV;
 
 static int __init load_ramdisk(char *str)
@@ -290,6 +294,16 @@ static int __init root_dev_setup(char *line)
 
 __setup("root=", root_dev_setup);
 
+#ifdef CONFIG_LG_INIT
+static int __init lginit_dev_setup(char *line)
+{
+	strlcpy(lginit_device_name, line, sizeof(lginit_device_name));
+	return 1;
+}
+
+__setup("lginit=", lginit_dev_setup);
+#endif
+
 static int __init rootwait_setup(char *str)
 {
 	if (*str)
@@ -528,6 +542,23 @@ void __init mount_root(void)
 #endif
 }
 
+#ifdef CONFIG_LG_INIT
+void __init mount_lginit(void)
+{
+	int err;
+
+	if (lginit_device_name[0]) {
+		err = sys_mount(lginit_device_name, "/mnt/lg/lginit", "squashfs", MS_RDONLY | MS_SILENT, NULL);
+		if (err)
+		{
+			printk("VFS: Unable to mount lginit fs: %d\n", err);
+			return;
+		}
+		printk("VFS: Mounted lginit.\n");
+	}
+}
+#endif
+
 /*
  * Prepare the namespace - decide what/where to mount, load ramdisks, etc.
  */
@@ -587,4 +618,7 @@ out:
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
+#ifdef CONFIG_LG_INIT
+	mount_lginit();
+#endif
 }

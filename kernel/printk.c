@@ -1388,6 +1388,34 @@ static inline void printk_delay(void)
 		}
 	}
 }
+#if defined(CONFIG_LG_KLOG_PRINT)
+void do_lg_sysrq_print_klog(void)
+{
+	if(log_first_idx > log_next_idx)
+		lg_sysrq_print_klog(log_first_idx, (u32)(log_buf + log_buf_len));
+	lg_sysrq_print_klog(0, log_next_idx);
+}
+
+void lg_sysrq_print_klog(u32 start, u32 end)
+{
+	struct log* msg;
+	size_t len;
+	char text[LOG_LINE_MAX + PREFIX_MAX];
+	u32 index = start;
+
+	while((index < end) && ( index >= start )) {
+		raw_spin_lock(&logbuf_lock);
+		msg = log_from_idx(index);
+		len = msg_print_text(msg, msg->flags, false, text, sizeof(text));
+		index = log_next(index);
+		raw_spin_unlock(&logbuf_lock);
+
+		stop_critical_timings();	/* don't trace print latency */
+		call_console_drivers(msg->level, text, len);
+		start_critical_timings();
+	}
+}
+#endif
 
 /*
  * Continuation lines are buffered, and not committed to the record buffer

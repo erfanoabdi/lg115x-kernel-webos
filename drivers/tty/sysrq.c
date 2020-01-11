@@ -405,10 +405,26 @@ static struct sysrq_key_op sysrq_unrt_op = {
 	.enable_mask	= SYSRQ_ENABLE_RTNICE,
 };
 
+#ifdef CONFIG_LG_KLOG_PRINT
+#include <linux/printk.h>
+
+static void sysrq_handle_lg_print_klog(int key)
+{
+	do_lg_sysrq_print_klog();
+}
+static struct sysrq_key_op sysrq_lg_printklog_op = {
+	.handler	= sysrq_handle_lg_print_klog,
+	.help_msg	= "[lg]print-kernel-log-buffer(.)",
+	.action_msg	= "[lg]print-kernel-log-buffer",
+	.enable_mask	= SYSRQ_ENABLE_LOG,
+};
+#else
+#define sysrq_lg_printklog_op (*(struct sysrq_key_op *)NULL)
+#endif
+
 /* Key Operations table and lock */
 static DEFINE_SPINLOCK(sysrq_key_table_lock);
-
-static struct sysrq_key_op *sysrq_key_table[36] = {
+static struct sysrq_key_op *sysrq_key_table[37] = {
 	&sysrq_loglevel_op,		/* 0 */
 	&sysrq_loglevel_op,		/* 1 */
 	&sysrq_loglevel_op,		/* 2 */
@@ -464,6 +480,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* y: May be registered on sparc64 for global register dump */
 	NULL,				/* y */
 	&sysrq_ftrace_dump_op,		/* z */
+	&sysrq_lg_printklog_op,		/* . */
 };
 
 /* key2index calculation, -1 on invalid index */
@@ -475,6 +492,8 @@ static int sysrq_key_table_key2index(int key)
 		retval = key - '0';
 	else if ((key >= 'a') && (key <= 'z'))
 		retval = key + 10 - 'a';
+	else if(key == '.')
+		retval = 11 + ('z' - 'a');
 	else
 		retval = -1;
 	return retval;

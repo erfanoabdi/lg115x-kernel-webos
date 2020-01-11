@@ -1248,7 +1248,18 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
+#ifdef CONFIG_MODULE_IGNORE_SUBVER
+	/* check version magic except subverion number */
+	if (strncmp(amagic, bmagic,3) != 0)
+		return 0;
+
+	amagic += strcspn(amagic, " ");
+	bmagic += strcspn(bmagic, " ");
+
 	return strcmp(amagic, bmagic) == 0;
+#else
+	return strcmp(amagic, bmagic) == 0;
+#endif
 }
 #endif /* CONFIG_MODVERSIONS */
 
@@ -2751,7 +2762,7 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 	mod->unused_gpl_crcs = section_addr(info, "__kcrctab_unused_gpl");
 #endif
 #ifdef CONFIG_CONSTRUCTORS
-	mod->ctors = section_objs(info, ".ctors",
+	mod->ctors = section_objs(info, CONFIG_GCOV_CTORS,
 				  sizeof(*mod->ctors), &mod->num_ctors);
 #endif
 

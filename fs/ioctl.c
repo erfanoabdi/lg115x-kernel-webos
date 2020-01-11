@@ -36,13 +36,27 @@ static long vfs_ioctl(struct file *filp, unsigned int cmd,
 		      unsigned long arg)
 {
 	int error = -ENOTTY;
+#ifdef CONFIG_LG_IOCTL_COMPATIBILITY
+	if (!filp->f_op)
+		goto out;
 
+	if (filp->f_op->unlocked_ioctl) {
+		error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
+		if (error == -ENOIOCTLCMD)
+			error = -ENOTTY;
+		goto out;
+	} else if (filp->f_op->ioctl) {
+		error = filp->f_op->ioctl(filp->f_path.dentry->d_inode,
+					  filp, cmd, arg);
+	}
+#else
 	if (!filp->f_op || !filp->f_op->unlocked_ioctl)
 		goto out;
 
 	error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
 	if (error == -ENOIOCTLCMD)
 		error = -ENOTTY;
+#endif
  out:
 	return error;
 }

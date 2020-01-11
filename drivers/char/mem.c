@@ -762,7 +762,12 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 
 static int open_port(struct inode *inode, struct file *filp)
 {
+#if defined (CONFIG_LG_KERNEL_EXPAND)
+	//temporarily 0, should be reverted.
+	return 0;
+#else
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
+#endif
 }
 
 #define zero_lseek	null_lseek
@@ -845,6 +850,145 @@ static const struct file_operations oldmem_fops = {
 };
 #endif
 
+#ifdef CONFIG_LG_MEM_DEVICE
+static int open_lgmem(struct inode * inode, struct file * filp)
+{
+//	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
+//	have to return 0 for non-super users
+	return 0;
+}
+
+static ssize_t read_lgmem(struct file *file, char __user *buf,
+		size_t count, loff_t *ppos)
+#if 1
+{
+	int rc = -ENXIO;
+	struct vm_area_struct * vma;
+	struct mm_struct *mm ;
+
+	unsigned long p = *ppos;
+	unsigned int	data[3];
+
+	if ((mm = current->mm) == NULL)
+		goto bad_area;
+
+
+	down_read(&mm->mmap_sem);
+
+	vma = find_vma(mm, p);
+
+	if (!vma)
+		goto bad_area;
+
+	if (vma->vm_start > p)
+		goto bad_area;
+
+	data[0] = vma->vm_start;
+	data[1] = vma->vm_end;
+	data[2] = vma->vm_flags;
+
+	if (count < sizeof(data))
+		goto bad_area;
+
+	if (copy_to_user(buf, data, sizeof(data)))
+		goto bad_area;
+
+	rc = sizeof(data);
+bad_area:
+	up_read(&mm->mmap_sem);
+	return rc;
+}
+#else
+{
+	int rc = -ENXIO;
+	struct vm_area_struct * vma;
+	struct mm_struct *mm ;
+
+	unsigned long p = *ppos;
+	char		data[256];
+
+	if ((mm = current->mm) == NULL)
+		goto bad_area;
+
+
+	down_read(&mm->mmap_sem);
+
+	vma = find_vma(mm, p);
+
+	if (!vma)
+		goto bad_area;
+
+	if (vma->vm_start > p)
+		goto bad_area;
+
+
+	snprintf(data,sizeof(data),"%08lx-%08lx %c%c%c%c",
+			vma->vm_start, vma->vm_end,
+			vma->vm_flags & VM_READ ? 	'r' : '-',
+			vma->vm_flags & VM_WRITE ? 	'w' : '-',
+			vma->vm_flags & VM_EXEC ? 	'x' : '-',
+			vma->vm_flags & VM_MAYSHARE ? 's' : 'p');
+
+
+	if (count < (strlen(data) + 1))
+		goto bad_area;
+
+	if (copy_to_user(buf, data, strlen(data) + 1))
+		goto bad_area;
+
+	rc = strlen(data) + 1;
+bad_area:
+	up_read(&mm->mmap_sem);
+	return rc;
+}
+#endif
+
+static const struct file_operations lgmem_fops = {
+	.llseek		= memory_lseek,
+	.open		= open_lgmem,
+	.read		= read_lgmem,
+};
+#endif
+
+#if 0
+static ssize_t kmsg_writev(struct kiocb *iocb, const struct iovec *iv,
+			   unsigned long count, loff_t pos)
+{
+	char *line, *p;
+	int i;
+	ssize_t ret = -EFAULT;
+	size_t len = iov_length(iv, count);
+
+	line = kmalloc(len + 1, GFP_KERNEL);
+	if (line == NULL)
+		return -ENOMEM;
+
+	/*
+	 * copy all vectors into a single string, to ensure we do
+	 * not interleave our log line with other printk calls
+	 */
+	p = line;
+	for (i = 0; i < count; i++) {
+		if (copy_from_user(p, iv[i].iov_base, iv[i].iov_len))
+			goto out;
+		p += iv[i].iov_len;
+	}
+	p[0] = '\0';
+
+	ret = printk("%s", line);
+	/* printk can add a prefix */
+	if (ret > len)
+		ret = len;
+out:
+	kfree(line);
+	return ret;
+}
+static const struct file_operations lgkmsg_fops = {
+	.aio_write = kmsg_writev,
+	.llseek = noop_llseek,
+};
+#endif
+
 static const struct memdev {
 	const char *name;
 	umode_t mode;
@@ -868,6 +1012,10 @@ static const struct memdev {
 #endif
 #ifdef CONFIG_CRASH_DUMP
 	[12] = { "oldmem", 0, &oldmem_fops, NULL },
+#endif
+
+#ifdef CONFIG_LG_MEM_DEVICE
+		[13] = { "lgmem", 0, &lgmem_fops, NULL },
 #endif
 };
 

@@ -148,6 +148,9 @@ int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 void jfs_evict_inode(struct inode *inode)
 {
+#ifdef CONFIG_LG_JFS_USB_PULLOUT
+		struct jfs_inode_info *jfs_ip = JFS_IP(inode);
+#endif
 	jfs_info("In jfs_evict_inode, inode = 0x%p", inode);
 
 	if (!inode->i_nlink && !is_bad_inode(inode)) {
@@ -156,10 +159,24 @@ void jfs_evict_inode(struct inode *inode)
 		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
 			truncate_inode_pages(&inode->i_data, 0);
 
+#ifdef CONFIG_LG_JFS_USB_PULLOUT
+			if (inode->i_sb && inode->i_sb->s_flags & MS_RDONLY) {
+				jfs_warn("\n\n\nlog has IO Error %p %ld %s %d\n\n\n\n", inode, inode->i_ino, __func__, __LINE__);
+	//			TXN_LOCK();
+			list_del_init(&jfs_ip->anon_inode_list);
+	//			TXN_UNLOCK();
+			}
+			else {
+				if (test_cflag(COMMIT_Freewmap, inode))
+					jfs_free_zero_link(inode);
+				diFree(inode);
+			}
+#else
+
 			if (test_cflag(COMMIT_Freewmap, inode))
 				jfs_free_zero_link(inode);
-
 			diFree(inode);
+#endif
 
 			/*
 			 * Free the inode from the quota allocation.

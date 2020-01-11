@@ -71,3 +71,38 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
 
 	return clocksource_register_hz(&cs->clksrc, hz);
 }
+
+/**
+ * clocksource_mmio_init_preset - Initialize using preset mult/shift
+ * @base:	Virtual address of the clock readout register
+ * @name:	Name of the clocksource
+ * @mult:	Preset multiplier
+ * @shift:	Preset shifter
+ * @rating:	Rating of the clocksource
+ * @bits:	Number of valid bits
+ * @read:	One of clocksource_mmio_read*() above
+ */
+int __init clocksource_mmio_init_preset(void __iomem *base, const char *name,
+	unsigned int mult, unsigned int shift, int rating, unsigned bits,
+	cycle_t (*read)(struct clocksource *))
+{
+	struct clocksource_mmio *cs;
+
+	if (bits > 32 || bits < 16)
+		return -EINVAL;
+
+	cs = kzalloc(sizeof(struct clocksource_mmio), GFP_KERNEL);
+	if (!cs)
+		return -ENOMEM;
+
+	cs->reg = base;
+	cs->clksrc.name = name;
+	cs->clksrc.rating = rating;
+	cs->clksrc.read = read;
+	cs->clksrc.mask = CLOCKSOURCE_MASK(bits);
+	cs->clksrc.mult = mult;
+	cs->clksrc.shift = shift;
+	cs->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+
+	return clocksource_register(&cs->clksrc);
+}

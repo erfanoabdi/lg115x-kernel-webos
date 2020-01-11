@@ -397,4 +397,9 @@ static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 		       groupsize, buf, len, ascii)
 #endif /* defined(CONFIG_DYNAMIC_DEBUG) */
 
+#if defined(CONFIG_LG_KLOG_PRINT)
+void do_lg_sysrq_print_klog(void);
+void lg_sysrq_print_klog(u32 start, u32 end);
+#endif
+
 #endif

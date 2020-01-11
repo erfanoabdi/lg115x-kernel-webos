@@ -1789,7 +1789,12 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 
 		if (!vma ||
+#ifdef CONFIG_CRAMFS_LINEAR_XIP
+		    ((vma->vm_flags & (VM_IO | VM_PFNMAP)) &&
+			!(vma->vm_flags & VM_XIP)) ||
+#else
 		    (vma->vm_flags & (VM_IO | VM_PFNMAP)) ||
+#endif
 		    !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
@@ -2566,6 +2571,22 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
 	return same;
 }
 
+#ifdef CONFIG_CRAMFS_LINEAR_XIP
+/*
+ * We hold the mm semaphore for reading and vma->vm_mm->page_table_lock
+ */
+static inline void break_cow(struct vm_area_struct *vma,
+	struct page *new_page, unsigned long address, pte_t *page_table)
+{
+	pte_t entry;
+
+	entry = maybe_mkwrite(pte_mkdirty(mk_pte(new_page, vma->vm_page_prot)),
+		vma);
+	if (ptep_set_access_flags(vma, address, page_table, entry, 1))
+		update_mmu_cache(vma, address, page_table);
+}
+#endif
+
 static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
 {
 	/*
@@ -2592,6 +2613,21 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 		copy_user_highpage(dst, src, va, vma);
 }
 
+#ifdef CONFIG_CRAMFS_LINEAR_XIP
+# if defined(__mips__)
+#  if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+static inline int pte_read(pte_t pte)	{ return pte.pte_low & _PAGE_READ; }
+#  else
+static inline int pte_read(pte_t pte)	{ return pte_val(pte) & _PAGE_READ; }
+#  endif
+# elif defined(__arm__)
+static inline int pte_read(pte_t pte)	{ return pte_val(pte) & L_PTE_USER; }
+# else
+#error define pte_read() for your architecture
+#endif
+#endif
+
+
 /*
  * This routine handles present pages, when users try to write
  * to a shared page. It is done by copying the page to a new address
@@ -2616,12 +2652,59 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	__releases(ptl)
 {
 	struct page *old_page, *new_page = NULL;
+#ifdef CONFIG_CRAMFS_LINEAR_XIP
+	unsigned long pfn = pte_pfn(orig_pte);
+#endif
 	pte_t entry;
 	int ret = 0;
 	int page_mkwrite = 0;
 	struct page *dirty_page = NULL;
 	unsigned long mmun_start = 0;	/* For mmu_notifiers */
 	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+
+#ifdef CONFIG_CRAMFS_LINEAR_XIP
+	if (unlikely(!pfn_valid(pfn))) {
+		if ((vma->vm_flags & VM_XIP) && pte_present(orig_pte) &&
+			pte_read(orig_pte)) {
+			/*
+			 * Handle COW of XIP memory.
+			 * Note that the source memory actually isn't a ram
+			 * page so no struct page is associated to the source
+			 * pte.
+			 */
+			char *dst;
+			int ret;
+
+			spin_unlock(&mm->page_table_lock);
+			new_page = alloc_page(GFP_HIGHUSER);
+			if (!new_page)
+					return VM_FAULT_OOM;
+
+			/* copy XIP data to memory */
+
+			dst = kmap_atomic(new_page);
+			ret = copy_from_user(dst, (void *)address, PAGE_SIZE);
+			kunmap_atomic(dst);
+
+			/* make sure pte didn't change while we dropped the
+			   lock */
+			spin_lock(&mm->page_table_lock);
+			if (!ret && pte_same(*page_table, orig_pte)) {
+				inc_mm_counter_fast(mm, MM_FILEPAGES);
+				break_cow(vma, new_page, address, page_table);
+				lru_cache_add_lru(new_page, LRU_ACTIVE_ANON);
+				page_add_file_rmap(new_page);
+				spin_unlock(&mm->page_table_lock);
+				return VM_FAULT_MINOR;	/* Minor fault */
+			}
+
+			/* pte changed: back off */
+			spin_unlock(&mm->page_table_lock);
+			page_cache_release(new_page);
+			return ret ? VM_FAULT_OOM : VM_FAULT_MINOR;
+		}
+	}
+#endif
 
 	old_page = vm_normal_page(vma, address, orig_pte);
 	if (!old_page) {
@@ -3461,6 +3544,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* file_update_time outside page_lock */
 		if (vma->vm_file && !page_mkwrite)
 			file_update_time(vma->vm_file);
+		if (vma->vm_prfile && !page_mkwrite)
+			file_update_time(vma->vm_prfile);
 	} else {
 		unlock_page(vmf.page);
 		if (anon)

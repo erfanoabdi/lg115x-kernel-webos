@@ -34,6 +34,7 @@
 #include "efi.h"
 #include "karma.h"
 #include "sysv68.h"
+#include "lgemmc.h"
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
@@ -73,6 +74,9 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #endif
 #ifdef CONFIG_LDM_PARTITION
 	ldm_partition,		/* this must come before msdos */
+#endif
+#ifdef CONFIG_LGEMMC_PARTITION
+	lgemmc_partition,	/* this must come before msdos */
 #endif
 #ifdef CONFIG_MSDOS_PARTITION
 	msdos_partition,

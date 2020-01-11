@@ -71,6 +71,20 @@
  *    the D-PAD to map to buttons if your pad is not detected
  *
  * Later changes can be tracked in SCM.
+ *
+ * 2012-08-24 : by daehyun.park@lge.com
+ * - XBox360W's D-PAD map to Axis , not buttons.
+ *
+ * Line  : 131
+ * Before: { 0x045e, 0x0719, "Xbox 360 Wireless Receiver", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360W },
+ * After : { 0x045e, 0x0719, "Xbox 360 Wireless Receiver", 0, XTYPE_XBOX360W },
+ *
+ * - add Logitech X-Box competable gamepads 3 sort
+ *
+ *	{ 0x046d, 0xc21d, "Logitech Gamepad F310", 0, XTYPE_XBOX360},
+ *	{ 0x046d, 0xc21e, "Logitech Rumble Gamepad F510", 0, XTYPE_XBOX360},
+ *	{ 0x046d, 0xc21f, "Logitech Wireless Gamepad F710", 0, XTYPE_XBOX360},
+ *
  */
 
 #include <linux/kernel.h>
@@ -175,6 +189,10 @@ static const struct xpad_device {
 	{ 0x1bad, 0xf903, "Tron Xbox 360 controller", 0, XTYPE_XBOX360 },
 	{ 0x24c6, 0x5300, "PowerA MINI PROEX Controller", 0, XTYPE_XBOX360 },
 	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
+// add logitech gamepads
+	{ 0x046d, 0xc21d, "Logitech Gamepad F310", 0, XTYPE_XBOX360},
+	{ 0x046d, 0xc21e, "Logitech Rumble Gamepad F510", 0, XTYPE_XBOX360},
+	{ 0x046d, 0xc21f, "Logitech Wireless Gamepad F710", 0, XTYPE_XBOX360},
 	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKNOWN }
 };
 

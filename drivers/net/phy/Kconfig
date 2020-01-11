@@ -84,7 +84,7 @@ config ICPLUS_PHY
 config REALTEK_PHY
 	tristate "Drivers for Realtek PHYs"
 	---help---
-	  Supports the Realtek 821x PHY.
+	  Currently supports the RTL8201F, RTL8211B and RTL8211E PHYs.
 
 config NATIONAL_PHY
 	tristate "Drivers for National Semiconductor PHYs"

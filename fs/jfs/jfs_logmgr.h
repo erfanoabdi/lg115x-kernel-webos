@@ -423,6 +423,9 @@ struct jfs_log {
 #define log_QUIESCE	3
 #define log_FLUSH	4
 
+#ifdef CONFIG_LG_JFS_USB_PULLOUT
+#define log_INVALID 5
+#endif
 /*
  * group commit flag
  */

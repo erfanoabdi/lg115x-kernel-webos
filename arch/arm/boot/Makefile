@@ -48,6 +48,8 @@ $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 	@$(kecho) '  Kernel: $@ is ready'
 
+ifneq ($(CONFIG_KERNEL_LG_LZO),y)
+ifneq ($(CONFIG_KERNEL_LG_LZ4),y)
 $(obj)/compressed/vmlinux: $(obj)/Image FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
@@ -56,7 +58,24 @@ $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 	@$(kecho) '  Kernel: $@ is ready'
 
 endif
+endif
+endif
 
+targets += $(dtb-y)
+
+# Rule to build device tree blobs
+$(obj)/%.dtb: $(src)/dts/%.dts FORCE
+	$(call if_changed_dep,dtc)
+
+$(obj)/dtbs: $(addprefix $(obj)/, $(dtb-y))
+
+clean-files := *.dtb
+
+ifeq ($(CONFIG_KERNEL_LG_LZO),y)
+  UIMAGE_LOADADDR=0
+else ifeq ($(CONFIG_KERNEL_LG_LZ4),y)
+  UIMAGE_LOADADDR=0
+else
 ifneq ($(LOADADDR),)
   UIMAGE_LOADADDR=$(LOADADDR)
 else
@@ -65,6 +84,8 @@ else
   else
     UIMAGE_LOADADDR=$(ZRELADDR)
   endif
+endif
+
 endif
 
 check_for_multiple_loadaddr = \

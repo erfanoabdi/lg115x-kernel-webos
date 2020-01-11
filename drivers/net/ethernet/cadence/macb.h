@@ -185,7 +185,8 @@
 #define GEM_RXBS_SIZE				8
 #define GEM_DDRP_OFFSET				24
 #define GEM_DDRP_SIZE				1
-
+#define GEM_BDBRW_OFFSET			27
+#define GEM_BDBRW_SIZE				1
 
 /* Bitfields in NSR */
 #define MACB_NSR_LINK_OFFSET			0

@@ -460,3 +460,107 @@ static int __init snapshot_device_init(void)
 };
 
 device_initcall(snapshot_device_init);
+
+
+#ifdef CONFIG_LG_SNAPSHOT_BOOT
+
+#define LGSNAP_IOC_MAGIC		's'
+#define LGSNAP_GET_IMAGE_SIZE		_IOR(LGSNAP_IOC_MAGIC, 1, long)
+#define LGSNAP_CREATE_IMAGE		_IOW(LGSNAP_IOC_MAGIC, 2, int)
+#define LGSNAP_WRITE_MAGIC		_IO(LGSNAP_IOC_MAGIC, 3)
+#define LGSNAP_IOC_MAXNR		4
+
+DEFINE_MUTEX(lgsnap_mutex);
+static atomic_t allow_once_lgsnap = ATOMIC_INIT(-1);
+static int lgsnap_open(struct inode *inode, struct file *filp)
+{
+	/* Only allow once a power on */
+	if(!atomic_inc_and_test(&allow_once_lgsnap)) {
+		atomic_set(&allow_once_lgsnap, 1);
+		return -EPERM;		
+	}
+
+	return 0;
+}
+
+static int lgsnap_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static int lgsnap_create_image(void)
+{
+	int ret;
+
+	ret = pm_autosleep_lock();
+	if (ret)
+		return ret;
+
+	if (pm_autosleep_state() > PM_SUSPEND_ON) {
+		ret = -EBUSY;
+		goto out;
+	}
+	
+	ret = hibernate();
+	
+out:
+	pm_autosleep_unlock();
+
+	return ret;
+}
+
+extern int lgsnap_image_size;
+extern int lgsnap_write_magic(void);
+static long lgsnap_ioctl(struct file *filp, unsigned int cmd,
+						unsigned long arg)
+{
+	int ret = -1;
+
+	if (_IOC_TYPE(cmd) != LGSNAP_IOC_MAGIC)
+		return -ENOTTY;
+	if (_IOC_NR(cmd) > LGSNAP_IOC_MAXNR)
+		return -ENOTTY;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	
+	switch (cmd) {
+	case LGSNAP_GET_IMAGE_SIZE:
+		ret = lgsnap_image_size;
+		break;
+		
+	case LGSNAP_CREATE_IMAGE:
+		ret = lgsnap_create_image();
+		break;
+
+	case LGSNAP_WRITE_MAGIC:
+		ret = lgsnap_write_magic();
+		break;
+		
+	default:
+		break;
+	}
+	
+	return ret;
+}
+
+static const struct file_operations lgsnap_fops = {
+	.open = lgsnap_open,
+	.release = lgsnap_release,
+	.unlocked_ioctl = lgsnap_ioctl,
+};
+
+static struct miscdevice lgsnap_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "lgsnap",
+	.fops = &lgsnap_fops,
+};
+
+static int __init lgsnap_device_init(void)
+{
+	return misc_register(&lgsnap_device);
+};
+
+device_initcall(lgsnap_device_init);
+
+#endif
+

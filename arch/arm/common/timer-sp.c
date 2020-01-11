@@ -64,12 +64,40 @@ static long __init sp804_get_clock_rate(struct clk *clk)
 	return rate;
 }
 
-static void __iomem *sched_clock_base;
+static void __iomem *clock_base;
 
 static u32 sp804_read(void)
 {
-	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
+	return ~readl_relaxed(clock_base + TIMER_VALUE);
 }
+
+static cycle_t sp804_clocksource_read(struct clocksource *cs)
+{
+	return ~readl_relaxed(clock_base + TIMER_VALUE);
+}
+
+static void sp804_set_free_running(void __iomem *base)
+{
+	/* setup timer as free-running clocksource */
+	writel(0, base + TIMER_CTRL);
+	writel(0xffffffff, base + TIMER_LOAD);
+	writel(0xffffffff, base + TIMER_VALUE);
+	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
+		base + TIMER_CTRL);
+}
+
+static void sp804_clocksource_resume(struct clocksource *cs)
+{
+	sp804_set_free_running(clock_base);
+}
+
+struct clocksource sp804_clksrc = {
+	.rating	= 200,
+	.mask	= CLOCKSOURCE_MASK(32),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.read	= sp804_clocksource_read,
+	.resume	= sp804_clocksource_resume,
+};
 
 void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 						     const char *name,
@@ -92,20 +120,16 @@ void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 	if (rate < 0)
 		return;
 
-	/* setup timer 0 as free-running clocksource */
-	writel(0, base + TIMER_CTRL);
-	writel(0xffffffff, base + TIMER_LOAD);
-	writel(0xffffffff, base + TIMER_VALUE);
-	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
-		base + TIMER_CTRL);
+	sp804_set_free_running(base);
 
-	clocksource_mmio_init(base + TIMER_VALUE, name,
-		rate, 200, 32, clocksource_mmio_readl_down);
+	sp804_clksrc.name = name;
 
-	if (use_sched_clock) {
-		sched_clock_base = base;
+	clocksource_register_hz(&sp804_clksrc, rate);
+
+	clock_base = base;
+
+	if (use_sched_clock)
 		setup_sched_clock(sp804_read, 32, rate);
-	}
 }
 
 

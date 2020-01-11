@@ -486,6 +486,44 @@ config ARCH_IXP4XX
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
+config ARCH_LG1K
+	bool "LGE Ltd LG1xxx-based boards"
+	depends on MMU
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_SMP
+	select REGULATOR
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for the LG Electronics Ltd LG1xxx-based boards.
+
+config ARCH_LG115X
+	bool "LGE Ltd LG115x-based boards (DEPRECATED)"
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_SMP
+	select SPARSE_IRQ
+	help
+	  This enables support for the LG Electronics Ltd LG115x(AKA H13, L9)-
+	  based boards.
+	  This is deprecated and files of under arch/arm/mach-lg115x will be removed.
+	  Use ARCH_LG1K instaed.
+
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select ARCH_REQUIRE_GPIOLIB
@@ -952,6 +990,8 @@ source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
+source "arch/arm/mach-lg1k/Kconfig"
+
 source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
@@ -1027,6 +1067,8 @@ source "arch/arm/mach-vt8500/Kconfig"
 source "arch/arm/mach-w90x900/Kconfig"
 
 source "arch/arm/mach-zynq/Kconfig"
+
+source "arch/arm/mach-lg115x/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -2245,3 +2287,5 @@ source "crypto/Kconfig"
 source "lib/Kconfig"
 
 source "arch/arm/kvm/Kconfig"
+
+source "arch/arm/Kconfig.lgexpand"
