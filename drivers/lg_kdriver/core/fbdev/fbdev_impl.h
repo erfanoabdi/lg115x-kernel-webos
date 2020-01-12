@@ -202,6 +202,8 @@ struct _FBDEV_WIN_CTX_T
 
 	UINT16			freeze_ctrl_mask;		/* if freeze mask is non-zero value, fb kdriver should block some operation accoring to freeze_mask */
 	FBDEV_CTX_T*	dm; 					/* pointer to parent context */
+    
+    UINT32            irq_enabled;        /* check for irq */
 };
 
 /** main context structure for FBDEV controller

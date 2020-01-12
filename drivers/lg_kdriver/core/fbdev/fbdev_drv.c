@@ -1272,7 +1272,7 @@ static int FBDEV_open(struct fb_info *info , int user)
 	/*	raxis.lim (2010/11/20) -- register interrupt handler when IRQ enabled */
 	if( win->users++ == 0 )
 	{
-		if ( g_fbdev_cfg->b_use_irq && !(info->state & (1<<1)) )
+		if ( g_fbdev_cfg->b_use_irq && !(win->irq_enabled) )
 		{
 			if ( !g_fbdev_irq_run_flag )
 			{
@@ -1288,7 +1288,7 @@ static int FBDEV_open(struct fb_info *info , int user)
 				FBDEV_SetInterruptEnable(MIXER_INTR,1);
 #endif
 			}
-			info->state |= (1<<1);
+			win->irq_enabled = 1;
 		}
 
 		if(is_win(info->fix.id, OSD0))
@@ -1384,11 +1384,11 @@ static int FBDEV_close(struct fb_info *info , int user)
 	 * the below code seems to stop all interrupts of FB when a single FB device is closed.
 	 */
 #if 0
-	if( --win->users == 0 && (info->state & (1<<1)) )
+	if( --win->users == 0 && win->irq_enabled )
 	{
 		/* raxis.lim (2010/11/26) -- OSD irq is never freed */
 		// free_irq(IRQ_OSD,NULL);
-		info->state &= ~(1<<1);	// info state : 0bit(running, suspend) 1bit(irq enable, disable)
+		win->irq_enabled = 0;	// Disable irq
 	}
 
 	if(is_win(info->fix.id, OSD0))
