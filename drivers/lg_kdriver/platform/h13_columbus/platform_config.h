@@ -49,7 +49,7 @@
  * CONFIG_LX_GRAPHIC_RES is set 0 to run auto detect.
  ----------------------------------------------------------------------------------------*/
 #define CONFIG_LX_BOOT_LOGO_FBDEV	0		/* POSD 0 */
-#define CONFIG_LX_BUILTIN_FBMEM		0		/* off    */
+#define CONFIG_LX_BUILTIN_FBMEM		1		/* on    */
 #define CONFIG_LX_GRAPHIC_RES		LX_MAKE_RES(0,0)	/* 0x0: auto detect. call lx_chip_graphic_res() to get resolution */
 
 /*----------------------------------------------------------------------------------------
