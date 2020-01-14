@@ -1353,6 +1353,9 @@ static int FBDEV_open(struct fb_info *info , int user)
         FBDEV_ExecFBHWHandler ( FBDEV_HW_EVENT_POSD_OPEN, &evdata );
 	}
 
+    if( win->users == 1 )
+        FBDEV_pan_display(&info->var, info);
+
 	ret = RET_OK;	/* all work done */
 func_exit:
 	FBDEV_TRACE_END();
